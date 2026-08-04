@@ -1,0 +1,4 @@
+node_modules/
+custom_components/hass_digital_twin/frontend/*.js
+custom_components/hass_digital_twin/frontend/*.map
+!custom_components/hass_digital_twin/frontend/house.yaml

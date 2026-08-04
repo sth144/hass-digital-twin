@@ -1,6 +1,6 @@
 # HASS Digital Twin
 
-An independent Home Assistant digital-twin panel built with Lit, Three.js, TypeScript, and GLB/glTF. It is deliberately not a fork of `floor3d-card`.
+An independent Home Assistant digital-twin panel built with Lit, Three.js, TypeScript, and GLB/glTF.
 
 ## Development
 

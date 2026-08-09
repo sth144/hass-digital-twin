@@ -1,0 +1,186 @@
+model: /hass_digital_twin/house/house.glb
+background: "#1c2730"
+# Devices without a matching object in the GLB are drawn with the procedural device
+# models in src/renderer/device-models.ts. `model:` overrides the inferred shape.
+areas:
+  garage:
+    ha_area_id: garage
+    objects: [area__garage]
+    polygon: [[-6.8, -1.5], [-3.2, -1.5], [-3.2, 1.7], [-6.8, 1.7]]
+    camera:
+      position: [-9, 5, 5]
+      target: [-5, 0.5, 0]
+  kitchen:
+    ha_area_id: 436971bed9524cc7b592c5b61f6268fd
+    objects: [area__kitchen]
+    polygon: [[3.3, -1.5], [6.9, -1.5], [6.9, 1.7], [3.3, 1.7]]
+    camera:
+      position: [8, 5, 5]
+      target: [5, 0.5, 0]
+  living_room:
+    ha_area_id: 9c5683082d774b83a8777b4ca3b4ea5a
+    objects: [area__living_room, area__living_annex]
+    polygon: [[-1.6, 2.8], [2, 2.8], [2, 6], [-1.6, 6]]
+    camera:
+      position: [5, 5, 9]
+      target: [0, 0.5, 4]
+  office:
+    ha_area_id: b16bff0b14d64ac3a266452fed3baede
+    objects: [area__office]
+    polygon: [[3.3, 2.5], [6.9, 2.5], [6.9, 5.7], [3.3, 5.7]]
+    camera:
+      position: [9, 5, 9]
+      target: [5, 0.5, 4]
+entities:
+  light.garage_light:
+    type: light
+    model: light
+    name: Garage Light
+    area: garage
+    object: light__garage
+    position: [-5.0, 2.35, 0.1]
+    light:
+      position: [-5.0, 2.35, 0.1]
+      radius: 4
+      intensity_scale: 1.3
+  switch.garage_light_led:
+    type: switch
+    model: switch
+    name: Garage Light Switch
+    area: garage
+    object: switch__garage
+    yaw: -90
+    position: [-4.12, 1.3, 0.6]
+    action: toggle
+  switch.smart_plug_5_socket_1:
+    type: switch
+    model: plug
+    name: Garage Smart Plug
+    area: garage
+    object: plug__garage
+    yaw: -90
+    position: [-4.12, 0.35, 1.2]
+    action: toggle
+  switch.driveway_light:
+    type: switch
+    model: switch
+    name: Driveway Light Switch
+    area: garage
+    object: switch__driveway
+    yaw: -90
+    position: [-4.12, 1.3, -0.2]
+    action: toggle
+  light.guest_room_light_switch_light:
+    type: light
+    model: light
+    name: Guest Room Light
+    area: garage
+    object: light__guest
+    position: [-6.0, 2.35, 1.0]
+    light:
+      position: [-6.0, 2.35, 1.0]
+      radius: 3
+      intensity_scale: 1
+  camera.wyze_v4_driveway_cam_1:
+    type: camera
+    model: camera
+    name: Driveway Camera
+    area: garage
+    object: camera__driveway
+    yaw: 90
+    position: [-6.4, 1.9, -1.2]
+    preview: hover
+  switch.kitchen_chandelier_light:
+    type: switch
+    model: light
+    name: Kitchen Chandelier
+    area: kitchen
+    object: light__kitchen_chandelier
+    position: [5.1, 2.35, 0.1]
+    action: toggle
+    light:
+      position: [5.1, 2.25, 0.1]
+      radius: 4
+      intensity_scale: 1.2
+  light.office_5:
+    type: light
+    model: light
+    name: Office Lights
+    area: office
+    object: light__office_ceiling
+    position: [5.1, 2.35, 4.1]
+    light:
+      position: [5.1, 2.4, 4.1]
+      radius: 4
+      intensity_scale: 1.3
+  switch.office_string_lights:
+    type: switch
+    model: switch
+    name: Office String Lights
+    area: office
+    object: switch__office_string
+    yaw: 90
+    position: [3.26, 1.3, 4.9]
+    action: toggle
+  light.living_room_light:
+    type: light
+    model: light
+    name: Living Room Light
+    area: living_room
+    object: light__living_room
+    position: [0.2, 2.35, 4.4]
+    light:
+      position: [0.2, 2.35, 4.4]
+      radius: 4
+      intensity_scale: 1.3
+  switch.living_room_fan:
+    type: switch
+    model: fan
+    name: Living Room Ceiling Fan
+    area: living_room
+    object: fan__living_room
+    position: [0.0, 2.3, 0.3]
+    action: toggle
+  media_player.samsung_q60aa_65_tv:
+    type: control
+    model: tv
+    name: Living Room TV
+    area: living_room
+    object: tv__living_room
+    position: [0.3, 0.44, -2.55]
+  humidifier.147334558156779_dehumidifier:
+    type: control
+    model: dehumidifier
+    name: Dehumidifier
+    area: living_room
+    object: dehumidifier__living_room
+    position: [-3.2, 0.0, 2.2]
+  fan.levoit_smart_true_hepa_air_purifier:
+    type: control
+    model: air_purifier
+    name: Air Purifier
+    area: living_room
+    object: purifier__living_room
+    position: [1.9, 0.0, 2.4]
+  vacuum.robovac:
+    type: control
+    model: vacuum
+    name: RoboVac
+    area: living_room
+    object: vacuum__living_room
+    position: [-1.0, 0.0, 1.6]
+  device_tracker.sean_hindss_iphone_4:
+    type: sensor
+    model: phone
+    name: iPhone
+    area: living_room
+    object: phone__living_room
+    position: [1.2, 0.78, 0.9]
+  binary_sensor.back_door_sensor_contact:
+    type: sensor
+    name: Back Door
+    area: living_room
+    object: door__back
+    door:
+      open_position: [1.6, 1.1, -2.92]
+      closed_position: [0.0, 1.1, -2.92]

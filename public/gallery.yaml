@@ -1,0 +1,117 @@
+model: /hass_digital_twin/house/house.glb
+background: "#161d27"
+# A reference sheet for every procedural device model, laid out in a grid on the main
+# floor. The `demo.*` keys are deliberately not Home Assistant entities: this twin shows
+# what each shape looks like, it does not claim these devices exist.
+areas:
+  gallery:
+    objects: [area__living_room]
+    camera:
+      position: [0, 6, 10]
+      target: [0, 0.6, 0]
+entities:
+  demo.light:
+    type: light
+    model: light
+    name: Light
+    area: gallery
+    object: gallery__light
+    position: [-3.0, 2.35, -2.2]
+  demo.switch:
+    type: switch
+    model: switch
+    name: Switch
+    area: gallery
+    object: gallery__switch
+    position: [0.2, 1.3, -2.2]
+  demo.plug:
+    type: switch
+    model: plug
+    name: Plug
+    area: gallery
+    object: gallery__plug
+    position: [1.2, 0.35, -2.2]
+  demo.camera:
+    type: camera
+    model: camera
+    name: Camera
+    area: gallery
+    object: gallery__camera
+    position: [2.2, 1.9, -2.2]
+  demo.sensor:
+    type: sensor
+    model: sensor
+    name: Sensor
+    area: gallery
+    object: gallery__sensor
+    position: [2.7, 1.6, -2.2]
+  demo.fan:
+    type: control
+    model: fan
+    name: Fan
+    area: gallery
+    object: gallery__fan
+    position: [-1.4, 2.3, -2.2]
+  demo.tv:
+    type: control
+    model: tv
+    name: TV
+    area: gallery
+    object: gallery__tv
+    position: [-2.6, 0.44, 0.2]
+  demo.dehumidifier:
+    type: control
+    model: dehumidifier
+    name: Dehumidifier
+    area: gallery
+    object: gallery__dehumidifier
+    position: [-1.0, 0.0, 0.2]
+  demo.air_purifier:
+    type: control
+    model: air_purifier
+    name: Air Purifier
+    area: gallery
+    object: gallery__air_purifier
+    position: [0.1, 0.0, 0.2]
+  demo.vacuum:
+    type: control
+    model: vacuum
+    name: Robot Vacuum
+    area: gallery
+    object: gallery__vacuum
+    position: [1.1, 0.0, 0.2]
+  demo.car:
+    type: control
+    model: car
+    name: Car
+    area: gallery
+    object: gallery__car
+    position: [-2.4, 0.0, 2.2]
+  demo.phone:
+    type: sensor
+    model: phone
+    name: Phone
+    area: gallery
+    object: gallery__phone
+    position: [1.3, 0.78, 2.2]
+  demo.laptop:
+    type: control
+    model: laptop
+    name: Laptop
+    area: gallery
+    object: gallery__laptop
+    position: [0.6, 0.76, 2.2]
+  demo.dog:
+    type: sensor
+    model: dog
+    name: Dog
+    area: gallery
+    object: gallery__dog
+    position: [-0.7, 0.0, 2.4]
+  demo.door:
+    type: sensor
+    model: door
+    name: Door
+    area: gallery
+    object: gallery__door
+    position: [2.4, 1.1, 0.2]

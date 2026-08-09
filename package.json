@@ -3,7 +3,34 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "vite", "build": "tsc --noEmit && vite build", "preview": "vite preview" },
-  "dependencies": { "@lit-labs/virtualizer": "^2.1.0", "js-yaml": "^4.1.0", "lit": "^3.3.0", "three": "^0.181.0", "zod": "^4.1.0" },
-  "devDependencies": { "@types/js-yaml": "^4.0.9", "@types/three": "^0.181.0", "typescript": "^5.9.0", "vite": "^7.1.0" }
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "generate:placeholder-model": "node scripts/generate-placeholder-model.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "publish": "node scripts/publish-twin.mjs",
+    "prebuild": "node -e \"const fs=require('fs');if(!fs.existsSync('public/twins.yaml'))fs.copyFileSync('public/twins.example.yaml','public/twins.yaml')\""
+  },
+  "dependencies": {
+    "@lit-labs/virtualizer": "^2.1.0",
+    "js-yaml": "^4.1.0",
+    "lit": "^3.3.0",
+    "three": "^0.181.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/three": "^0.181.0",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.66.0",
+    "vite": "^7.1.0"
+  }
 }

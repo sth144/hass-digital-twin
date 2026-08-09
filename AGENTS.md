@@ -11,6 +11,8 @@
 - `npm run build` emits the deployable module and copies public assets to `custom_components/hass_digital_twin/frontend/`.
 - Do not edit generated JavaScript in `custom_components/hass_digital_twin/frontend/`; rebuild it instead.
 - Keep GLB models and textures out of Git unless they are small, redistributable demo assets. Never commit private floor plans, camera imagery, credentials, or Home Assistant backups.
+- Twin mappings are private by default: `.gitignore` ignores `public/*.yaml` and whitelists only the reference twins (`house.yaml`, `garage.yaml`, `gallery.yaml`, `twins.example.yaml`). A mapping for a real house carries its room outlines and often its address, so leave it ignored. `public/twins.yaml` is generated from `twins.example.yaml` on first build.
+- `scripts/publish-twin.mjs` takes a FreeCAD document all the way to the Home Assistant host: export (roofless, via `scripts/freecad-export.py`), content-hashed model into `public/models/`, mapping refresh, build, rsync. Run `npm run publish -- <document.FCStd>`.
 
 ## Development and validation
 

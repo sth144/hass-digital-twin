@@ -2,3 +2,27 @@ node_modules/
 custom_components/hass_digital_twin/frontend/*.js
 custom_components/hass_digital_twin/frontend/*.map
 !custom_components/hass_digital_twin/frontend/house.yaml
+
+# Twin mappings are private by default: a real house's room outlines, camera angles and
+# address should not land in git. Reference twins are opted back in by name, so a new
+# real-house mapping is ignored unless someone deliberately whitelists it.
+public/*.yaml
+!public/house.yaml
+!public/garage.yaml
+!public/gallery.yaml
+!public/twins.example.yaml
+
+# Generated frontend copies of the mappings (the build writes these from public/).
+custom_components/hass_digital_twin/frontend/*.yaml
+!custom_components/hass_digital_twin/frontend/house.yaml
+
+# Private house models: keep real floor plans out of the repo (see AGENTS.md).
+public/house/*.glb
+!public/house/house.glb
+public/models/
+custom_components/hass_digital_twin/frontend/house/*.glb
+!custom_components/hass_digital_twin/frontend/house/house.glb
+custom_components/hass_digital_twin/frontend/models/
+
+# Screenshots from the Playwright MCP server
+.playwright-mcp/

@@ -1,0 +1,6 @@
+custom_components/hass_digital_twin/frontend/
+node_modules/
+package-lock.json
+
+# FreeCAD-side helper is Python; Prettier has no parser for it.
+scripts/*.py

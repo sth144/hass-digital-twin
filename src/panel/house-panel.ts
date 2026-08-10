@@ -519,7 +519,9 @@ export class HousePanel extends LitElement {
     if (!twin) return;
     this.twinId = twinId;
     this.unsaved = false;
-    this.mapping = (await this.loadSavedLayout(twinId)) ?? (await loadMapping(twin.mapping));
+    const published = await loadMapping(twin.mapping);
+    const saved = await this.loadSavedLayout(twinId);
+    this.mapping = saved ? HousePanel.mergeLayout(published, saved) : published;
     this.houseScene?.setAreas(this.mapping.areas);
     this.houseScene?.setEntities(this.mapping.entities);
     this.houseScene?.setCameraUrlResolver((entityId) => {
@@ -1052,6 +1054,22 @@ export class HousePanel extends LitElement {
     this.editorMessage = `Removed ${entityId} from this twin only; Home Assistant was unchanged.`;
     this.saveDraft();
     this.renderPanel();
+  }
+  /**
+   * A saved layout owns what the user arranged — room outlines and device placements —
+   * while the published YAML owns which model file to load. Re-exporting the CAD
+   * document therefore swaps the geometry without disturbing anything that was placed,
+   * and rooms added to the document since the layout was saved still appear.
+   */
+  private static mergeLayout(published: HouseMapping, saved: HouseMapping): HouseMapping {
+    return {
+      ...saved,
+      model: published.model,
+      background: published.background ?? saved.background,
+      camera: published.camera ?? saved.camera,
+      areas: { ...published.areas, ...saved.areas },
+      entities: saved.entities,
+    };
   }
   /** Local key so an unsaved layout survives a reload even without Home Assistant. */
   private draftKey(twinId = this.twinId) {

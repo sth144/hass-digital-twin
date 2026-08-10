@@ -26,3 +26,6 @@ custom_components/hass_digital_twin/frontend/models/
 
 # Screenshots from the Playwright MCP server
 .playwright-mcp/
+
+# Python bytecode from local syntax checks
+__pycache__/

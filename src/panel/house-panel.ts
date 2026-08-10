@@ -1,7 +1,7 @@
 import { LitElement, css, html, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { loadMapping, loadTwinCatalog } from "../mapping/loader";
-import type { HouseMapping, TwinCatalog } from "../mapping/schema";
+import { mappingSchema, type HouseMapping, type TwinCatalog } from "../mapping/schema";
 import type { HomeAssistant } from "../home-assistant/types";
 import type { HassEntity } from "../home-assistant/types";
 import { toggleEntity } from "../home-assistant/service-calls";
@@ -32,6 +32,8 @@ const DOMAIN_TYPES: Record<string, "light" | "switch" | "camera" | "control" | "
   sensor: "sensor",
 };
 const TOGGLEABLE = ["light", "switch", "fan"];
+/** Domains the device-model library can actually draw. */
+const PLACEABLE = /^(light|switch|fan|camera|media_player|vacuum|humidifier|cover|lock|climate)\./;
 type Mode = "view" | "devices" | "rooms";
 const MODES: { id: Mode; label: string; hint: string }[] = [
   { id: "view", label: "View", hint: "Click a device to control it, or a room to see its devices" },
@@ -63,6 +65,8 @@ export class HousePanel extends LitElement {
   private mode: Mode = "view";
   private editingOpen = false;
   private initialized = false;
+  private twinId?: string;
+  private unsaved = false;
   private get editMode() {
     return this.mode === "devices";
   }
@@ -273,6 +277,23 @@ export class HousePanel extends LitElement {
     }
     .device:hover {
       background: var(--secondary-background-color, #202020);
+    }
+    .device.unplaced .name {
+      color: var(--secondary-text-color, #9b9b9b);
+    }
+    .device.unplaced .dot {
+      background: none;
+      border: 1px dashed var(--secondary-text-color, #9b9b9b);
+      box-sizing: border-box;
+    }
+    .text-button.primary {
+      color: var(--text-primary-color, #fff);
+      background: var(--primary-color, #03a9f4);
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .text-button:disabled {
+      cursor: default;
+      opacity: 0.6;
     }
     .device .dot {
       width: 12px;
@@ -496,7 +517,9 @@ export class HousePanel extends LitElement {
   private async loadTwin(catalog: TwinCatalog, twinId: string) {
     const twin = catalog.twins.find((entry) => entry.id === twinId);
     if (!twin) return;
-    this.mapping = await loadMapping(twin.mapping);
+    this.twinId = twinId;
+    this.unsaved = false;
+    this.mapping = (await this.loadSavedLayout(twinId)) ?? (await loadMapping(twin.mapping));
     this.houseScene?.setAreas(this.mapping.areas);
     this.houseScene?.setEntities(this.mapping.entities);
     this.houseScene?.setCameraUrlResolver((entityId) => {
@@ -701,35 +724,84 @@ export class HousePanel extends LitElement {
       empty.append(hint);
       return empty;
     }
+    // Home Assistant owns which area a device is in, so the room lists everything HA
+    // puts there — placed in the model or not.
     const placed = this.roomEntities(areaId);
-    const card = this.card(
-      this.areaLabel(areaId),
-      `${placed.length} ${placed.length === 1 ? "device" : "devices"}`,
-    );
-    if (!placed.length) {
+    const placedIds = new Set(placed.map((entity) => entity.entity_id));
+    const inArea = this.areaCandidates(areaId).filter((entity) => !placedIds.has(entity.entity_id));
+    const card = this.card(this.areaLabel(areaId), `${placed.length + inArea.length} in this area`);
+    const list = document.createElement("div");
+    list.className = "stack";
+    for (const entity of placed) list.append(this.deviceRow(entity));
+    for (const entity of inArea) list.append(this.deviceRow(entity, false));
+    if (!list.children.length) {
       const hint = document.createElement("p");
       hint.className = "hint";
-      hint.textContent = "Nothing placed here yet — add one from Editing below.";
+      hint.textContent = this.mapping?.areas[areaId]?.ha_area_id
+        ? "Home Assistant has no devices in this area."
+        : "Link this room to a Home Assistant area in Rooms mode to list its devices.";
       card.append(hint);
+      return card;
     }
-    for (const entity of placed) card.append(this.deviceRow(entity));
-    const unplaced = this.areaCandidates(areaId).filter(
-      (entity) => !this.mapping?.entities[entity.entity_id],
-    );
-    if (unplaced.length) {
-      const hint = document.createElement("p");
-      hint.className = "hint";
-      hint.textContent = `${unplaced.length} more in this area, not placed in the model yet.`;
-      card.append(hint);
+    card.append(list);
+    // Only count what the model library can draw: sensors and buttons stay list-only.
+    const drawable = inArea.filter((entity) => PLACEABLE.test(entity.entity_id)).length;
+    if (drawable) {
+      const placeAll = document.createElement("button");
+      placeAll.className = "text-button";
+      placeAll.textContent = `Place ${drawable} unplaced device${drawable === 1 ? "" : "s"}`;
+      placeAll.onclick = () => this.placeAllInRoom(areaId);
+      card.append(placeAll);
     }
     return card;
   }
-  private deviceRow(entity: HassEntity) {
+  /** Drops every unplaced device of a room into a tidy grid inside its outline. */
+  private placeAllInRoom(areaId: string) {
+    const polygon = this.mapping?.areas[areaId]?.polygon;
+    if (!polygon?.length) {
+      this.editorMessage = "This room has no outline yet, so there is nowhere to put them.";
+      return this.renderPanel();
+    }
+    const xs = polygon.map(([x]) => x);
+    const zs = polygon.map(([, z]) => z);
+    const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
+    const [z0, z1] = [Math.min(...zs), Math.max(...zs)];
+    const placedIds = new Set(this.roomEntities(areaId).map((entity) => entity.entity_id));
+    const todo = this.areaCandidates(areaId).filter(
+      (entity) => !placedIds.has(entity.entity_id) && PLACEABLE.test(entity.entity_id),
+    );
+    if (!todo.length) {
+      this.editorMessage =
+        "Nothing here has a shape to draw — sensors and buttons are listed only.";
+      return this.renderPanel();
+    }
+    const columns = Math.ceil(Math.sqrt(todo.length));
+    todo.forEach((entity, index) => {
+      const fx = (index % columns) + 1;
+      const fz = Math.floor(index / columns) + 1;
+      const rows = Math.ceil(todo.length / columns);
+      this.selectedArea = areaId;
+      this.createMappedEntity(entity, [
+        x0 + ((x1 - x0) * fx) / (columns + 1),
+        0,
+        z0 + ((z1 - z0) * fz) / (rows + 1),
+      ]);
+    });
+    this.houseScene?.setEntities(this.mapping!.entities);
+    todo.forEach((entity) => this.houseScene?.syncEntity(entity.entity_id, entity.state ?? "off"));
+    this.editorMessage = `Placed ${todo.length} device${todo.length === 1 ? "" : "s"} in ${this.areaLabel(areaId)}. Drag them where they belong, then save.`;
+    this.saveDraft();
+    this.renderPanel();
+  }
+  private deviceRow(entity: HassEntity, placed = true) {
     const row = document.createElement("button");
-    row.className = "device";
+    row.className = placed ? "device" : "device unplaced";
     row.draggable = true;
     row.ondragstart = (event) => event.dataTransfer?.setData("text/plain", entity.entity_id);
-    row.onclick = () => this.showObjectControls(entity);
+    row.onclick = placed
+      ? () => this.showObjectControls(entity)
+      : () => this.startPlacement(entity, false);
+    row.title = placed ? "" : "Click, then click a spot in the model";
     const active = entity.state === "on" || entity.state === "playing";
     const dot = document.createElement("span");
     dot.className = active ? "dot active" : "dot";
@@ -773,11 +845,20 @@ export class HousePanel extends LitElement {
     details.append(status, caveat);
     if (this.roomEditMode) this.renderRoomEditor(details);
     details.append(...this.unplacedSection());
+    const save = document.createElement("button");
+    save.className = this.unsaved ? "text-button primary" : "text-button";
+    save.textContent = this.unsaved ? "Save layout" : "Layout saved";
+    save.disabled = !this.unsaved;
+    save.onclick = () => void this.saveLayout();
+    const revert = document.createElement("button");
+    revert.className = "text-button";
+    revert.textContent = "Revert to the twin's YAML";
+    revert.onclick = () => void this.revertLayout();
     const exportButton = document.createElement("button");
     exportButton.className = "text-button";
     exportButton.textContent = "Download mapping YAML";
     exportButton.onclick = () => this.downloadMapping();
-    details.append(exportButton);
+    details.append(save, revert, exportButton);
     return details;
   }
   private unplacedSection() {
@@ -865,6 +946,7 @@ export class HousePanel extends LitElement {
     overlay.append(label);
     const domain = entityId.split(".")[0];
     if (domain === "light") overlay.append(...this.brightnessControl(entityId, entity));
+    overlay.append(...this.placementControls(entityId));
     const actions = document.createElement("div");
     actions.className = "icon-row";
     if (TOGGLEABLE.includes(domain))
@@ -876,6 +958,72 @@ export class HousePanel extends LitElement {
       this.iconButton("remove", "Remove from twin", () => this.removeMappedEntity(entityId)),
     );
     overlay.append(actions);
+  }
+  /** Height and rotation: the two things a drag across the floor cannot express. */
+  private placementControls(entityId: string) {
+    const mapped = this.mapping?.entities[entityId];
+    if (!mapped) return [];
+    const height = mapped.position?.[1] ?? 0;
+    return [
+      this.slider(
+        "Height",
+        `${height.toFixed(2)} m`,
+        { min: 0, max: 3, step: 0.05, value: height },
+        (value) => this.houseScene?.setEntityHeight(entityId, value),
+        (value) => {
+          const [x, , z] = mapped.position ?? [0, 0, 0];
+          mapped.position = [x, this.houseScene?.setEntityHeight(entityId, value) ?? value, z];
+          if (mapped.light) mapped.light.position = [x, mapped.position[1], z];
+          this.commitPlacement(entityId);
+        },
+      ),
+      this.slider(
+        "Rotation",
+        `${Math.round(mapped.yaw ?? 0)}°`,
+        { min: 0, max: 345, step: 15, value: mapped.yaw ?? 0 },
+        (value) => this.houseScene?.setEntityYaw(entityId, value),
+        (value) => {
+          mapped.yaw = value;
+          this.houseScene?.setEntityYaw(entityId, value);
+          this.commitPlacement(entityId);
+        },
+      ),
+    ];
+  }
+  private commitPlacement(entityId: string) {
+    this.saveDraft();
+    this.houseScene?.syncEntity(entityId, this.hass?.states[entityId]?.state ?? "off");
+    this.renderPanel();
+  }
+  /**
+   * Preview runs on every input event so the model tracks the thumb; the panel is only
+   * rebuilt on release, because rebuilding it mid-drag would drop the drag.
+   */
+  private slider(
+    label: string,
+    readout: string,
+    range: { min: number; max: number; step: number; value: number },
+    onPreview: (value: number) => void,
+    onCommit: (value: number) => void,
+  ) {
+    const field = document.createElement("label");
+    field.className = "field";
+    field.textContent = `${label} · ${readout}`;
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = String(range.min);
+    input.max = String(range.max);
+    input.step = String(range.step);
+    input.value = String(range.value);
+    input.oninput = () => {
+      field.firstChild!.textContent = `${label} · ${
+        range.step < 1 ? `${Number(input.value).toFixed(2)} m` : `${input.value}°`
+      }`;
+      onPreview(Number(input.value));
+    };
+    input.onchange = () => onCommit(Number(input.value));
+    field.append(input);
+    return field;
   }
   private brightnessControl(entityId: string, entity: HassEntity) {
     const field = document.createElement("label");
@@ -905,8 +1053,73 @@ export class HousePanel extends LitElement {
     this.saveDraft();
     this.renderPanel();
   }
+  /** Local key so an unsaved layout survives a reload even without Home Assistant. */
+  private draftKey(twinId = this.twinId) {
+    return `hass-digital-twin:layout:${twinId}`;
+  }
+  /**
+   * Edits are kept in Home Assistant so they follow the user between browsers, with the
+   * browser copy as a fallback for versions that do not have the websocket commands yet.
+   */
+  private async loadSavedLayout(twinId: string) {
+    const stored = await this.readLayout(twinId);
+    if (!stored) return undefined;
+    try {
+      return mappingSchema.parse(stored);
+    } catch {
+      this.editorMessage = "Saved layout did not match the schema, so the YAML was used instead.";
+      return undefined;
+    }
+  }
+  private async readLayout(twinId: string): Promise<unknown> {
+    try {
+      const result = await this.hass?.connection.sendMessagePromise<{ mapping?: unknown }>({
+        type: "hass_digital_twin/load_layout",
+        twin: twinId,
+      });
+      if (result?.mapping) return result.mapping;
+    } catch {
+      // Home Assistant has not loaded the new commands yet; fall back to this browser.
+    }
+    const local = localStorage.getItem(this.draftKey(twinId));
+    return local ? yaml.load(local) : undefined;
+  }
+  /** Marks the layout dirty and keeps a browser copy, so nothing is lost on reload. */
   private saveDraft() {
-    if (this.mapping) localStorage.setItem("hass-digital-twin:draft", yaml.dump(this.mapping));
+    if (!this.mapping) return;
+    this.unsaved = true;
+    localStorage.setItem(this.draftKey(), yaml.dump(this.mapping));
+  }
+  private async saveLayout() {
+    if (!this.mapping || !this.twinId) return;
+    try {
+      await this.hass?.connection.sendMessagePromise({
+        type: "hass_digital_twin/save_layout",
+        twin: this.twinId,
+        mapping: JSON.parse(JSON.stringify(this.mapping)),
+      });
+      this.editorMessage = "Layout saved to Home Assistant.";
+    } catch {
+      this.editorMessage =
+        "Saved in this browser only — restart Home Assistant to store it there too.";
+    }
+    this.unsaved = false;
+    this.renderPanel();
+  }
+  /** Throws the edits away and goes back to the twin's YAML. */
+  private async revertLayout() {
+    if (!this.twinId) return;
+    localStorage.removeItem(this.draftKey());
+    try {
+      await this.hass?.connection.sendMessagePromise({
+        type: "hass_digital_twin/clear_layout",
+        twin: this.twinId,
+      });
+    } catch {
+      // Nothing stored server-side to clear.
+    }
+    this.editorMessage = "Reverted to the twin's saved YAML.";
+    window.location.reload();
   }
   /** Entities this twin has placed in a room. */
   private roomEntities(areaId: string) {
@@ -988,6 +1201,7 @@ export class HousePanel extends LitElement {
     mapped.position = applied ?? requested;
     if (!applied) this.houseScene?.showDraftMarker(entity.entity_id, requested);
     this.houseScene?.highlightObject(mapped.object);
+    this.houseScene?.syncEntity(entity.entity_id, entity.state);
     this.editorMessage = `Moved ${this.displayName(entity)} in this twin only; Home Assistant was unchanged.`;
   }
   private createMappedEntity(entity: HassEntity, position: [number, number, number]) {
@@ -1008,6 +1222,7 @@ export class HousePanel extends LitElement {
     this.houseScene?.setEntities(this.mapping.entities);
     // The scene decides the mount height for the chosen model.
     mapped.position = this.houseScene?.showDraftMarker(entity.entity_id, position) ?? position;
+    this.houseScene?.syncEntity(entity.entity_id, entity.state);
     this.editorMessage = `Placed ${this.displayName(entity)} in ${this.areaLabel(areaId)}.`;
   }
   /** Keeps a door's open and closed poses the same distance apart as it moves. */

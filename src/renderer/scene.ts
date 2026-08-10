@@ -260,10 +260,11 @@ export class HouseScene {
         this.findObject(config.object)?.position.fromArray(
           active ? config.door.open_position : config.door.closed_position,
         );
-      if (config.object.startsWith("fan__")) {
-        if (active) this.spinningFans.add(config.object);
-        else this.spinningFans.delete(config.object);
-      }
+      // Spin is decided by what the device is, not by how its object was named, so
+      // devices placed from the panel (object `draft__…`) spin too.
+      const spins = config.model === "fan" || config.object.startsWith("fan__");
+      if (spins && active) this.spinningFans.add(config.object);
+      else this.spinningFans.delete(config.object);
     }
   }
   /**
@@ -369,6 +370,35 @@ export class HouseScene {
     light?.position.set(x, light.position.y, z);
     this.selectionHelper?.update();
     return [x, height, z] as [number, number, number];
+  }
+  /** The object a mapped entity is drawn as, whether it came from the model or the library. */
+  private entityObject(entityId: string) {
+    const objectName = this.entityConfig.get(entityId)?.object;
+    return (
+      this.spawned.get(entityId) ??
+      (objectName ? this.model?.getObjectByName(objectName) : undefined)
+    );
+  }
+  /** Raises or lowers a device; returns the height that was applied. */
+  setEntityHeight(entityId: string, height: number) {
+    const object = this.entityObject(entityId);
+    if (!object) return undefined;
+    const world = object.getWorldPosition(new THREE.Vector3());
+    const target = new THREE.Vector3(world.x, height, world.z);
+    const local = object.parent ? object.parent.worldToLocal(target) : target;
+    object.position.y = local.y;
+    const light = this.entityLights.get(entityId);
+    light?.position.setY(height);
+    this.selectionHelper?.update();
+    return height;
+  }
+  /** Turns a device about its vertical axis, in degrees. */
+  setEntityYaw(entityId: string, degrees: number) {
+    const object = this.entityObject(entityId);
+    if (!object) return undefined;
+    object.rotation.y = (degrees * Math.PI) / 180;
+    this.selectionHelper?.update();
+    return degrees;
   }
   /** Crosshair plus paused picking, so a placement click is not read as a device tap. */
   setPlacementMode(active: boolean) {

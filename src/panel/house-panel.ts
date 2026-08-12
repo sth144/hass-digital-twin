@@ -66,6 +66,8 @@ export class HousePanel extends LitElement {
   private editingOpen = false;
   private initialized = false;
   private twinId?: string;
+  private catalog?: TwinCatalog;
+  private recovering = false;
   private unsaved = false;
   private get editMode() {
     return this.mode === "devices";
@@ -432,6 +434,7 @@ export class HousePanel extends LitElement {
   }
   disconnectedCallback() {
     window.removeEventListener("keydown", this.onKeyDown);
+    document.removeEventListener("visibilitychange", this.onTabVisible);
     this.bindings?.stop();
     this.houseScene?.dispose();
     this.houseScene = undefined;
@@ -474,14 +477,8 @@ export class HousePanel extends LitElement {
   private async initialize() {
     const host = this.renderRoot.querySelector<HTMLElement>("#scene");
     if (!host) return;
-    this.houseScene = new HouseScene(
-      host,
-      (areaId) => this.selectArea(areaId),
-      (entityId) => this.onSceneEntityClick(entityId),
-      (entityId, position) => this.onSceneEntityDropped(entityId, position),
-      (areaId, polygon) => this.onPolygonChanged(areaId, polygon),
-    );
-    this.houseScene.start();
+    this.attachScene(host);
+    document.addEventListener("visibilitychange", this.onTabVisible);
     this.renderRoot
       .querySelector<HTMLButtonElement>("#reset-camera")
       ?.addEventListener("click", () => this.houseScene?.resetView());
@@ -502,10 +499,55 @@ export class HousePanel extends LitElement {
       const catalog = await loadTwinCatalog(
         configuredUrl?.endsWith("/twins.yaml") ? configuredUrl : "/hass_digital_twin/twins.yaml",
       );
+      this.catalog = catalog;
       this.populateTwinSelect(catalog);
       await this.loadTwin(catalog, catalog.twins[0].id);
     } catch (error) {
       this.error = error instanceof Error ? error.message : "Unable to initialize house model";
+    }
+  }
+  private attachScene(host: HTMLElement) {
+    this.houseScene = new HouseScene(
+      host,
+      (areaId) => this.selectArea(areaId),
+      (entityId) => this.onSceneEntityClick(entityId),
+      (entityId, position) => this.onSceneEntityDropped(entityId, position),
+      (areaId, polygon) => this.onPolygonChanged(areaId, polygon),
+    );
+    this.houseScene.start();
+    // Three ways back from a lost context: the browser restores it, the tab is brought
+    // forward again, or — if it was lost while visible — a short grace period expires.
+    // Rebuilding makes a fresh context regardless, so whichever fires first wins.
+    this.houseScene.canvas.addEventListener("webglcontextrestored", () => void this.recoverScene());
+    this.houseScene.canvas.addEventListener("webglcontextlost", () => {
+      window.setTimeout(() => {
+        if (!document.hidden && this.houseScene?.contextLost) void this.recoverScene();
+      }, 1500);
+    });
+  }
+  private readonly onTabVisible = () => {
+    if (!document.hidden && this.houseScene?.contextLost) void this.recoverScene();
+  };
+  /**
+   * A lost WebGL context invalidates every GPU resource, so the renderer and the scene are
+   * rebuilt from scratch and the twin reloaded, then the camera, mode and selection are put
+   * back so returning to the tab looks like nothing happened.
+   */
+  private async recoverScene() {
+    const host = this.renderRoot.querySelector<HTMLElement>("#scene");
+    if (!host || this.recovering || !this.catalog || !this.twinId) return;
+    this.recovering = true;
+    const view = this.houseScene?.viewState();
+    const area = this.selectedArea;
+    this.houseScene?.dispose();
+    this.attachScene(host);
+    try {
+      await this.loadTwin(this.catalog, this.twinId);
+      if (area) this.selectArea(area, { focus: false });
+      if (view) this.houseScene?.applyView(view);
+      this.setMode(this.mode);
+    } finally {
+      this.recovering = false;
     }
   }
   private populateTwinSelect(catalog: TwinCatalog) {

@@ -100,6 +100,8 @@ export class HouseScene {
     document.addEventListener("visibilitychange", this.onVisibility);
     // Capture on the host runs before OrbitControls' own canvas listeners, so a drag that
     // starts on a mapped device moves the device instead of orbiting the camera.
+    this.canvas.addEventListener("webglcontextlost", this.onContextLost);
+    this.canvas.addEventListener("webglcontextrestored", this.onContextRestored);
     host.addEventListener("pointerdown", this.onDragStart, true);
     host.addEventListener("pointermove", this.onDragMove, true);
     host.addEventListener("pointerup", this.onDragEnd, true);
@@ -148,6 +150,32 @@ export class HouseScene {
     );
     this.grid.position.set(center.x, 0, center.z);
     this.scene.add(this.grid);
+  }
+  /**
+   * Browsers drop the WebGL context of a background tab to reclaim GPU memory. Calling
+   * preventDefault is what allows it to come back at all; without it the canvas is dead
+   * for good. The render loop stops meanwhile, since drawing to a lost context is a no-op.
+   */
+  private readonly onContextLost = (event: Event) => {
+    event.preventDefault();
+    this.stop();
+  };
+  private readonly onContextRestored = () => this.start();
+  /** True once the canvas has lost its context and needs the scene rebuilding. */
+  get contextLost() {
+    return this.renderer.getContext().isContextLost();
+  }
+  /** The current camera, so a rebuild can put the user back where they were. */
+  viewState() {
+    return {
+      position: this.camera.position.toArray() as [number, number, number],
+      target: this.controls.target.toArray() as [number, number, number],
+    };
+  }
+  applyView(view: { position: [number, number, number]; target: [number, number, number] }) {
+    this.camera.position.fromArray(view.position);
+    this.controls.target.fromArray(view.target);
+    this.controls.update();
   }
   /** The ground grid helps while arranging; it is noise when simply looking at a house. */
   setGridVisible(visible: boolean) {
@@ -556,6 +584,11 @@ export class HouseScene {
     this.areaPicker.dispose();
     this.controls.dispose();
     this.resizeObserver.disconnect();
+    this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
+    this.canvas.removeEventListener("webglcontextrestored", this.onContextRestored);
+    this.canvas.remove();
+    this.tooltip.remove();
+    this.cameraPreview.remove();
     this.host.removeEventListener("pointerdown", this.onDragStart, true);
     this.host.removeEventListener("pointermove", this.onDragMove, true);
     this.host.removeEventListener("pointerup", this.onDragEnd, true);

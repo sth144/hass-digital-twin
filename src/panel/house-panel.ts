@@ -8,7 +8,7 @@ import { toggleEntity } from "../home-assistant/service-calls";
 import { StateBindings } from "../home-assistant/state-bindings";
 import { loadRegistries } from "../home-assistant/registries";
 import yaml from "js-yaml";
-import { HouseScene } from "../renderer/scene";
+import { ACTIVE_STATES, HouseScene } from "../renderer/scene";
 import { resolveDeviceKind } from "../renderer/device-models";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -536,6 +536,7 @@ export class HousePanel extends LitElement {
     this.selectedArea = undefined;
     this.selectedMappedEntityId = undefined;
     this.houseScene?.setSelectedArea(undefined);
+    this.houseScene?.setGridVisible(this.mode !== "view");
     Object.entries(this.mapping.entities).forEach(([id]) =>
       this.houseScene?.syncEntity(id, this.hass?.states[id]?.state ?? "off"),
     );
@@ -573,6 +574,7 @@ export class HousePanel extends LitElement {
     this.mode = mode;
     this.houseScene?.setEditMode(mode === "devices");
     this.houseScene?.setRoomEditMode(mode === "rooms");
+    this.houseScene?.setGridVisible(mode !== "view");
     if (mode !== "devices") this.cancelPlacement();
     for (const button of this.renderRoot.querySelectorAll<HTMLButtonElement>("#modes button"))
       button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
@@ -804,7 +806,8 @@ export class HousePanel extends LitElement {
       ? () => this.showObjectControls(entity)
       : () => this.startPlacement(entity, false);
     row.title = placed ? "" : "Click, then click a spot in the model";
-    const active = entity.state === "on" || entity.state === "playing";
+    // Same notion of "doing something" as the model uses, so the dot agrees with the glow.
+    const active = ACTIVE_STATES.has(entity.state);
     const dot = document.createElement("span");
     dot.className = active ? "dot active" : "dot";
     const name = document.createElement("span");

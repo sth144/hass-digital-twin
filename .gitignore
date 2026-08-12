@@ -10,6 +10,7 @@ public/*.yaml
 !public/house.yaml
 !public/garage.yaml
 !public/gallery.yaml
+!public/demo.yaml
 !public/twins.example.yaml
 
 # Generated frontend copies of the mappings (the build writes these from public/).
@@ -19,6 +20,7 @@ custom_components/hass_digital_twin/frontend/*.yaml
 # Private house models: keep real floor plans out of the repo (see AGENTS.md).
 public/house/*.glb
 !public/house/house.glb
+!public/house/demo-house.glb
 public/models/
 custom_components/hass_digital_twin/frontend/house/*.glb
 !custom_components/hass_digital_twin/frontend/house/house.glb

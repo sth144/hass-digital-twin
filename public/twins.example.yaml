@@ -1,6 +1,9 @@
 # Starting catalog, copied to twins.yaml on first build. twins.yaml itself is gitignored
 # because it names real houses; add private twins there (or via scripts/publish-twin.mjs).
 twins:
+  - id: demo
+    name: Demo House
+    mapping: /hass_digital_twin/demo.yaml
   - id: playground
     name: Playground
     mapping: /hass_digital_twin/garage.yaml

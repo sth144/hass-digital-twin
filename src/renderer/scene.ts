@@ -12,7 +12,7 @@ type MappedEntity = MappedEntities[string];
 type MappedAreas = HouseMapping["areas"];
 
 /** States that count as "device is doing something", across the domains we draw. */
-const ACTIVE_STATES = new Set([
+export const ACTIVE_STATES = new Set([
   "on",
   "open",
   "playing",
@@ -148,6 +148,10 @@ export class HouseScene {
     );
     this.grid.position.set(center.x, 0, center.z);
     this.scene.add(this.grid);
+  }
+  /** The ground grid helps while arranging; it is noise when simply looking at a house. */
+  setGridVisible(visible: boolean) {
+    if (this.grid) this.grid.visible = visible;
   }
   /** Frames the whole model, used when a twin does not declare its own opening view. */
   frameModel() {

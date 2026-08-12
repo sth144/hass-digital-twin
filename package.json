@@ -13,7 +13,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "publish": "node scripts/publish-twin.mjs",
-    "prebuild": "node -e \"const fs=require('fs');if(!fs.existsSync('public/twins.yaml'))fs.copyFileSync('public/twins.example.yaml','public/twins.yaml')\""
+    "prebuild": "node -e \"const fs=require('fs');if(!fs.existsSync('public/twins.yaml'))fs.copyFileSync('public/twins.example.yaml','public/twins.yaml')\"",
+    "generate:demo-model": "node scripts/generate-demo-model.mjs"
   },
   "dependencies": {
     "@lit-labs/virtualizer": "^2.1.0",
